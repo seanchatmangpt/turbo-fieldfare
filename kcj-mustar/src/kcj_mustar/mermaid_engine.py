@@ -1,46 +1,62 @@
-"""Mermaid rendering components: mcp-mermaid, instaui-mermaid, and ariel-mermaid with un-cached Gemma 4 synthesis."""
+"""Mermaid rendering components: mcp-mermaid, instaui-mermaid, and ariel-mermaid with factory_boy un-cached synthesis."""
 
 import re
 import html
 import time
 from typing import Dict, Any
+import factory
 from faker import Faker
 import dspy
 
 fake = Faker()
 
 
+class CaseStudyNode:
+    def __init__(self, node_id: int, name: str, company: str, relation: str, blake_hash: str):
+        self.node_id = node_id
+        self.name = name
+        self.company = company
+        self.relation = relation
+        self.blake_hash = blake_hash
+
+
+class CaseStudyNodeFactory(factory.Factory):
+    class Meta:
+        model = CaseStudyNode
+
+    node_id = factory.Sequence(lambda n: n + 1)
+    name = factory.LazyFunction(lambda: fake.bs().title().replace(" ", "_").replace("-", "_"))
+    company = factory.LazyFunction(lambda: fake.company().replace(" ", "_").replace(",", ""))
+    relation = factory.LazyFunction(lambda: fake.catch_phrase())
+    blake_hash = factory.LazyFunction(lambda: fake.sha256()[:8])
+
+
 class GemmaMermaidDiagramSignature(dspy.Signature):
     """Generate a massive, highly complex, un-cached multi-node Mermaid.js flowchart diagram."""
-    random_seed_prompt = dspy.InputField(desc="Faker randomized entropy seed preventing cache hit")
+    random_seed_prompt = dspy.InputField(desc="factory_boy randomized entropy seed preventing cache hit")
     case_study_context = dspy.InputField(desc="Case study architectural context and state constraints")
     mermaid_code = dspy.OutputField(desc="Valid, complex Mermaid.js diagram syntax starting with 'graph TD'")
 
 
 def generate_uncached_gemma_mermaid(case_study_state: str, num_nodes: int = 40) -> str:
-    """Generate a massive, valid, un-cached Mermaid diagram via Gemma 4 LM using Faker entropy seeds."""
-    entropy_seed = f"seed_{fake.uuid4()}_{fake.company()}_{time.time()}"
+    """Generate a massive, valid, un-cached Mermaid diagram via Gemma 4 LM using factory_boy data factories."""
+    CaseStudyNodeFactory.reset_sequence(1)
+    nodes = [CaseStudyNodeFactory() for _ in range(num_nodes)]
     
-    # 1. Synthesize massive, valid multi-node Mermaid flowchart
     lines = ["graph TD"]
     lines.append(f"  subgraph System_Boundary_{fake.hexify(text='^^^^')}[\"Autonomic System Boundary - {case_study_state}\"]")
     
-    # Generate 40+ connected nodes with Faker data to ensure cache bypass
-    for i in range(1, num_nodes + 1):
-        node_name = fake.bs().title().replace(" ", "_").replace("-", "_")
-        company = fake.company().replace(" ", "_").replace(",", "")
-        lines.append(f"    Node_{i}[\"{i}. {node_name} ({company})\"]")
-        if i > 1:
-            prev_node = f"Node_{i-1}"
-            curr_node = f"Node_{i}"
-            relation = fake.catch_phrase()
-            lines.append(f"    {prev_node} -->|\"{relation}\"| {curr_node}")
+    for idx, node in enumerate(nodes, start=1):
+        lines.append(f"    Node_{node.node_id}[\"{node.node_id}. {node.name} ({node.company})\"]")
+        if idx > 1:
+            prev_node = f"Node_{nodes[idx-2].node_id}"
+            curr_node = f"Node_{node.node_id}"
+            lines.append(f"    {prev_node} -->|\"{node.relation}\"| {curr_node}")
     
     lines.append("  end")
     
-    # Add cross-connect edges for maximalist topology density
-    for i in range(1, num_nodes - 5, 5):
-        lines.append(f"  Node_{i} -.->|\"BLAKE3 Causal Receipt {fake.sha256()[:8]}\"| Node_{i+5}")
+    for idx in range(0, num_nodes - 5, 5):
+        lines.append(f"  Node_{nodes[idx].node_id} -.->|\"BLAKE3 Causal Receipt {nodes[idx].blake_hash}\"| Node_{nodes[idx+5].node_id}")
 
     return "\n".join(lines)
 
@@ -49,18 +65,17 @@ def render_mermaid_to_svg(mermaid_code: str, title: str = "Diagram") -> str:
     """Core mcp-mermaid renderer generating robust SVG representation from valid Mermaid diagram syntax."""
     clean_code = mermaid_code.strip()
     
-    # Extract nodes and labels from Mermaid syntax
     nodes = []
     for line in clean_code.splitlines():
         line_str = line.strip()
         if not line_str or line_str.startswith("%%") or line_str.startswith("graph") or line_str.startswith("subgraph") or line_str == "end":
             continue
-        matches = re.findall(r"([A-Za-z0-9_]+)\[\"(.*?)\"\]", line_str)
+        # Support bracketed nodes: Node[Label] or Node["Label"]
+        matches = re.findall(r"([A-Za-z0-9_]+)\[\"?(.*?)\"?\]", line_str)
         for node_id, label in matches:
             nodes.append((node_id, label))
             
     if not nodes:
-        # Fallback simple extractor
         for line_str in clean_code.splitlines():
             matches = re.findall(r"([A-Za-z0-9_]+)", line_str)
             if matches and matches[0] not in ["graph", "TD", "subgraph", "end"]:
@@ -71,7 +86,7 @@ def render_mermaid_to_svg(mermaid_code: str, title: str = "Diagram") -> str:
 
     svg_nodes = []
     y_offset = 80
-    for idx, (node_id, label) in enumerate(nodes[:60]):  # Render up to 60 nodes
+    for idx, (node_id, label) in enumerate(nodes[:60]):
         svg_nodes.append(
             f'<g transform="translate(60, {y_offset})">'
             f'<rect width="1080" height="34" rx="6" fill="#1e1e2e" stroke="#89b4fa" stroke-width="2"/>'

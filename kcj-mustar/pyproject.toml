@@ -18,6 +18,7 @@ dependencies = [
     "r4pm",
     "open-agent-traces",
     "tpot",
+    "factory-boy>=3.3.3",
 ]
 requires-python = ">=3.11"
 
