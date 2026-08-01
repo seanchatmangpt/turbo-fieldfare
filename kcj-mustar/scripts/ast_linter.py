@@ -3,6 +3,8 @@
 Scans Python source trees for forbidden constructs:
 - Forbidden `print()` calls.
 - Forbidden standard `logging` / `logger` usage (process events must be recorded strictly as OCEL 2.0 object-centric event logs).
+- Forbidden hardcoded dict literals inside functions (must be Pydantic BaseModel or Enum).
+- Forbidden regex usage `re.findall()`, `re.search()`, `re.match()` in diagram renderers (must use AST/formal parsers).
 - Hardcoded literal strings and numbers inside functions (must be defined in Enum, Pydantic BaseSettings, or module-level constants).
 """
 
@@ -61,13 +63,26 @@ class ConstructLinter(ast.NodeVisitor):
                     f"{self.filename}:{node.lineno}:{node.col_offset}: "
                     f"FORBIDDEN_LOGGING: Standard 'logging' module is forbidden. Process events must emit strictly as OCEL 2.0 logs."
                 )
+            elif alias.name == "re":
+                self.violations.append(
+                    f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                    f"FORBIDDEN_REGEX: Raw 're' module regex usage is forbidden in functions. Use formal AST or Pydantic parsers."
+                )
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
-        if node.module == "logging":
+        if node.module in ("logging", "re"):
             self.violations.append(
                 f"{self.filename}:{node.lineno}:{node.col_offset}: "
-                f"FORBIDDEN_LOGGING: Standard 'logging' module is forbidden. Process events must emit strictly as OCEL 2.0 logs."
+                f"FORBIDDEN_IMPORT: Import from '{node.module}' is forbidden. Use Pydantic models or formal AST parsers."
+            )
+        self.generic_visit(node)
+
+    def visit_Dict(self, node: ast.Dict):
+        if self.inside_function and len(node.keys) > 1:
+            self.violations.append(
+                f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                f"FORBIDDEN_HARDCODED_DICT: Hardcoded dictionary literal found inside function. Use a Pydantic BaseModel instead."
             )
         self.generic_visit(node)
 
@@ -84,6 +99,11 @@ class ConstructLinter(ast.NodeVisitor):
                 self.violations.append(
                     f"{self.filename}:{node.lineno}:{node.col_offset}: "
                     f"FORBIDDEN_LOGGING: Standard logger call '{node.func.value.id}.{node.func.attr}()' is forbidden. Process logs must emit strictly as OCEL 2.0 events."
+                )
+            elif node.func.value.id == "re":
+                self.violations.append(
+                    f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                    f"FORBIDDEN_REGEX: 're.{node.func.attr}()' regex call is forbidden. Use formal AST parsers or Pydantic models."
                 )
         self.generic_visit(node)
 
@@ -129,13 +149,13 @@ def main() -> int:
         violations.extend(scan_file(py_file))
 
     if violations:
-        sys.stderr.write("=== BUILD_BROKEN: AST CONSTRUCT, LOGGING & HARDCODED LITERAL VIOLATIONS FOUND ===\n")
+        sys.stderr.write("=== BUILD_BROKEN: AST CONSTRUCT, LOGGING, DICT & REGEX VIOLATIONS FOUND ===\n")
         for v in violations[:30]:
             sys.stderr.write(f"  {v}\n")
         sys.stderr.write(f"\nTotal Violations: {len(violations)}\n")
         return 1
 
-    sys.stdout.write("ALIVE: AST scanner passed cleanly (Zero logging rule enforced; all logs are OCEL 2.0)\n")
+    sys.stdout.write("ALIVE: AST scanner passed cleanly (No hardcoded dicts, no regex, zero logging)\n")
     return 0
 
 
