@@ -1,4 +1,4 @@
-"""博弈 (Self-Play) & 推演 (Rollout) - Strategy Proposer Engine grounded via Lumen (sqlite-vec)."""
+"""博弈 (Self-Play) & 推演 (Rollout) - PDDL / POWL Strategy Proposer Engine grounded via Lumen."""
 
 import sqlite3
 from pathlib import Path
@@ -37,17 +37,50 @@ def query_lumen_grounding(keyword: str = "Metal", limit: int = 5) -> list[dict]:
             }
             for r in rows
         ]
-    except Exception as e:
+    except Exception:
         return []
 
 
-def 执行推演(state: str, history: list[str] | None = None) -> dict[str, str | list]:
-    """Execute strategy rollout grounded against Lumen vector index."""
+def generate_pddl_spec(state: str, grounding: list[dict]) -> dict[str, str]:
+    """Synthesize formal PDDL domain and problem specifications."""
+    domain_pddl = f"""(define (domain KCJ-Autonomic-Domain)
+  (:requirements :strips :typing)
+  (:types state action receipt)
+  (:predicates
+     (state_active ?s - state)
+     (action_dispatched ?a - action)
+     (andon_cleared)
+  )
+  (:action execute_step
+     :parameters (?s - state ?a - action)
+     :precondition (and (state_active ?s) (andon_cleared))
+     :effect (action_dispatched ?a)
+  )
+)"""
+
+    problem_pddl = f"""(define (problem KCJ-Problem-{state})
+  (:domain KCJ-Autonomic-Domain)
+  (:objects init_state - state act_step - action)
+  (:init (state_active init_state) (andon_cleared))
+  (:goal (action_dispatched act_step))
+)"""
+
+    return {
+        "domain_pddl": domain_pddl,
+        "problem_pddl": problem_pddl,
+        "powl_graph": f"POWL_NODE[state={state}, grounding_count={len(grounding)}]"
+    }
+
+
+def 执行推演(state: str, history: list[str] | None = None) -> dict[str, str | list | dict]:
+    """Execute strategy rollout grounded against Lumen vector index and PDDL generator."""
     grounded_chunks = query_lumen_grounding(keyword=state.split("_")[0] if "_" in state else "Metal")
+    pddl_spec = generate_pddl_spec(state, grounded_chunks)
     
     return {
         "状态": state,
-        "策略": f"推演策略: [{state}] 规划完成",
+        "策略": f"推演策略: [{state}] PDDL/POWL 规划完成",
         "博弈轮次": str(len(history) if history else 0),
-        "LumenGrounding": grounded_chunks
+        "LumenGrounding": grounded_chunks,
+        "PDDL": pddl_spec
     }
