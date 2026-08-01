@@ -8,7 +8,7 @@ from pathlib import Path
 
 from kcj_mustar import __version__
 from kcj_mustar.autonomic_system import run_autonomic_cycle
-from kcj_mustar.mermaid_engine import render_mermaid_to_svg, instaui_mermaid_component, ariel_mermaid_style
+from kcj_mustar.mermaid_engine import render_mermaid_to_svg, instaui_mermaid_component, ariel_mermaid_style, generate_uncached_gemma_mermaid
 from kcj_mustar.video_engine import convert_log_to_video
 
 app = typer.Typer(
@@ -50,6 +50,26 @@ def serve(
     """Launch FastAPI web server for KCJ autonomic cycles, REST endpoints, and video/mermaid APIs."""
     typer.echo(f"=== Launching KCJ-MuStar FastAPI Server on http://{host}:{port} ===")
     uvicorn.run("kcj_mustar.server:app", host=host, port=port, reload=reload)
+
+
+@mermaid_app.command("generate")
+def generate_mermaid_cli(
+    state: str = typer.Option("case_study_architecture", "--state", "-s", help="Case study state name"),
+    nodes: int = typer.Option(40, "--nodes", "-n", help="Number of nodes for maximalist diagram density"),
+    output: Path = typer.Option(None, "--output", "-o", help="Optional output SVG file path")
+):
+    """Synthesize a massive, un-cached Mermaid.js diagram using Gemma 4 + Faker entropy seeds."""
+    typer.echo(f"=== Generating Un-cached Gemma 4 Mermaid Diagram ({nodes} nodes) ===")
+    code = generate_uncached_gemma_mermaid(case_study_state=state, num_nodes=nodes)
+    svg = render_mermaid_to_svg(code, title=f"Gemma 4 Case Study Diagram - {state}")
+    
+    if output:
+        output.write_text(svg, encoding="utf-8")
+        typer.echo(f"✓ Saved massive un-cached Mermaid SVG ({len(svg)} bytes, {nodes} nodes) to {output}")
+    else:
+        typer.echo(code)
+        typer.echo("\n--- SVG RENDER ---\n")
+        typer.echo(svg)
 
 
 @mermaid_app.command("render")
