@@ -1,8 +1,9 @@
-"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, Mermaid Rendering, and Log Video Engine."""
+"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, FastAPI Server launch, Mermaid Rendering, and Log Video Engine."""
 
 import sys
 import json
 import typer
+import uvicorn
 from pathlib import Path
 
 from kcj_mustar import __version__
@@ -12,7 +13,7 @@ from kcj_mustar.video_engine import convert_log_to_video
 
 app = typer.Typer(
     name="kcj",
-    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, PDDL Synthesis, Mermaid & Log Video Engines",
+    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, FastAPI Web Server, PDDL Synthesis, Mermaid & Log Video Engines",
     add_completion=False
 )
 
@@ -38,6 +39,17 @@ def run(
     typer.echo(f"=== Running KCJ Autonomic Cycle (State: {state}) ===")
     res = run_autonomic_cycle(state=state, use_gemma=use_gemma)
     typer.echo(json.dumps(res, indent=2, ensure_ascii=False))
+
+
+@app.command()
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Loopback host address"),
+    port: int = typer.Option(8000, "--port", "-p", help="Port to listen on"),
+    reload: bool = typer.Option(False, "--reload", help="Enable uvicorn auto-reload")
+):
+    """Launch FastAPI web server for KCJ autonomic cycles, REST endpoints, and video/mermaid APIs."""
+    typer.echo(f"=== Launching KCJ-MuStar FastAPI Server on http://{host}:{port} ===")
+    uvicorn.run("kcj_mustar.server:app", host=host, port=port, reload=reload)
 
 
 @mermaid_app.command("render")
