@@ -1,36 +1,74 @@
-"""Test KCJ Autonomic System linked to local Gemma 4 + Lumen Grounding."""
+"""Chicago TDD Integration Test: Full Dogfooding Loop with Gemma 4 LM Inference & OCEL Event Log Verification."""
 
 import urllib.request
 import json
+from pathlib import Path
 from kcj_mustar.autonomic_system import configure_local_gemma_with_cache, KCJAutonomicPipeline, run_autonomic_cycle
+from kcj_mustar.現場_quality.行灯_andon import OCEL_LOG_FILE
 
-def test_gemma_connection():
-    """Verify local Gemma 4 server on port 8080 is reachable by DSPy."""
+def verify_gemma_server_online() -> bool:
+    """Verify local Gemma 4 Apple Silicon Metal server on port 8080 is live and responding."""
     try:
-        req = urllib.request.urlopen("http://127.0.0.1:8080/v1/models")
+        req = urllib.request.urlopen("http://127.0.0.1:8080/v1/models", timeout=3)
         data = json.loads(req.read().decode())
-        assert data["data"][0]["id"] == "gemma-4-26b-a4b-it"
-        print("Local Gemma 4 Server Verified!")
+        models = [m["id"] for m in data.get("data", [])]
+        assert "gemma-4-26b-a4b-it" in models
+        print("✓ Gemma 4 Server Verified Live (gemma-4-26b-a4b-it)")
         return True
     except Exception as e:
-        print(f"Server check error: {e}")
+        print(f"✗ Gemma 4 Server Reachability Check Failed: {e}")
         return False
 
-def test_chicago_kcj_full_cycle():
-    """Verify real state transitions across Chinese (with Lumen Grounding), Japanese, and Korean domains."""
+
+def test_chicago_kcj_full_dogfood_loop():
+    """Execute complete Chicago TDD dogfooding loop verifying PDDL plan generation, Gemma 4 LM integration, and OCEL emission."""
+    gemma_live = verify_gemma_server_online()
+    assert gemma_live, "Gemma 4 server must be running on http://127.0.0.1:8080 for Chicago TDD dogfood loop"
+
     initial_state = "unibit_l1_execution_wip"
     
-    server_online = test_gemma_connection()
-    result = run_autonomic_cycle(state=initial_state, use_gemma=server_online)
+    # 1. Run full autonomic cycle through Gemma 4 LM + DSPy 2-Tier Cache
+    result = run_autonomic_cycle(state=initial_state, use_gemma=True)
 
+    # 2. Verify Execution Status & BLAKE3 Receipt
     assert result["status"] == "EXECUTED"
     assert result["receipt"] is not None
-    assert len(result["receipt"]) == 64
-    assert "推演策略" in result["strategy"]["策略"]
-    assert "LumenGrounding" in result["strategy"]
-    assert result["quality"]["行灯停止"] is False
-    assert result["dispatch"]["성공"] is True
+    assert len(result["receipt"]) == 64, f"Invalid BLAKE3 receipt length: {len(result['receipt'])}"
+
+    # 3. Verify Working PDDL / POWL Plan Generation (Chinese Strategy Engine)
+    strategy = result["strategy"]
+    assert "PDDL" in strategy, "Strategy missing PDDL spec"
+    assert "(define (domain KCJ-Autonomic-Domain)" in strategy["PDDL"]["domain_pddl"]
+    assert "(define (problem KCJ-Problem-unibit_l1_execution_wip)" in strategy["PDDL"]["problem_pddl"]
+    assert "POWL_NODE" in strategy["PDDL"]["powl_graph"]
+    assert "LumenGrounding" in strategy, "Strategy missing Lumen vector database grounding"
+    print("✓ Working PDDL Domain & Problem Specifications Verified!")
+
+    # 4. Verify Japanese Genba Quality Gate & OCEL 2.0 Event Log Emission
+    quality = result["quality"]
+    assert quality["行灯停止"] is False, "Quality check unexpectedly triggered Andon line-stop"
+    assert "OCEL_Event" in quality, "Quality check missing OCEL event record"
+    ocel_event = quality["OCEL_Event"]
+    assert ocel_event["ocel:activity"] == "AndonQualityInspection"
+    assert ocel_event["ocel:vmap"]["status"] == "PASSED"
+
+    # Verify persistent OCEL log file write
+    assert OCEL_LOG_FILE.exists(), f"OCEL log file missing at {OCEL_LOG_FILE}"
+    with open(OCEL_LOG_FILE, "r", encoding="utf-8") as f:
+        log_lines = [line.strip() for line in f if line.strip()]
+        assert len(log_lines) > 0
+        last_event = json.loads(log_lines[-1])
+        assert last_event["ocel:activity"] in ["AndonQualityInspection", "TestEvent"]
+    print(f"✓ OCEL 2.0 Event Log File Verified at {OCEL_LOG_FILE} ({len(log_lines)} events stored)")
+
+    # 5. Verify Korean Real-Time Dispatch & APM Speed
+    dispatch = result["dispatch"]
+    assert dispatch["성공"] is True
+    assert dispatch["APM"] == 100000
+    assert len(dispatch["영수증"]) == 64
+    print("✓ High-APM Korean Real-Time Dispatch Verified!")
+
 
 if __name__ == "__main__":
-    test_chicago_kcj_full_cycle()
-    print("GEMMA 4 + LUMEN GROUNDING + KCJ AUTONOMIC SYSTEM CYCLE PASSED SUCCESSFULLY!")
+    test_chicago_kcj_full_dogfood_loop()
+    print("\n=== ALL CHICAGO TDD DOGFOODING CHECKS PASSED WITH LIVE GEMMA 4 SERVER! ===")

@@ -1,15 +1,20 @@
 """現場 (Genba Quality) & 行灯 (Andon Fences) - Lean Quality Control in Japanese.
 
-Integrates independent VAL plan verification and OCEL 2.0 process event logging.
+Integrates independent VAL plan verification, OCEL 2.0 event stream recording,
+and automated log cleanup based on configurable max limits.
 """
 
 import time
 import json
-import subprocess
 from pathlib import Path
+import subprocess
 import dspy
 
 VAL_BINARY = Path("/Users/sac/ferroplan/benchmarks/.val/VAL/build/bin/Validate")
+OCEL_LOG_DIR = Path("/Users/sac/turbo-fieldfare/kcj-mustar/scratch/ocel_logs")
+OCEL_LOG_FILE = OCEL_LOG_DIR / "gemma_ocel_events.jsonl"
+DEFAULT_MAX_OCEL_EVENTS = 50
+
 
 class 行灯検証Signature(dspy.Signature):
     """ポカヨケ(Mistake-proofing)と行灯(Andon)ルールに従い、品質検証を実行する."""
@@ -19,18 +24,43 @@ class 行灯検証Signature(dspy.Signature):
     改善指示_ja = dspy.OutputField(desc="改善 (Kaizen) フィードバック")
 
 
-def record_ocel_event(event_type: str, object_id: str, status: str) -> dict:
-    """Generate OCEL 2.0 object-centric event log entry."""
-    return {
+def record_ocel_event(event_type: str, object_id: str, status: str, max_events: int = DEFAULT_MAX_OCEL_EVENTS) -> dict:
+    """Generate OCEL 2.0 event log entry and record to log file with automatic cleanup."""
+    OCEL_LOG_DIR.mkdir(parents=True, exist_ok=True)
+    
+    event = {
         "ocel:eid": f"evt-{int(time.time() * 1000)}",
         "ocel:timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "ocel:activity": event_type,
         "ocel:omap": [object_id],
         "ocel:vmap": {
             "status": status,
-            "engine": "genba_andon_v2"
+            "engine": "gemma_genba_andon_v2"
         }
     }
+
+    # Append new event
+    existing_events = []
+    if OCEL_LOG_FILE.exists():
+        with open(OCEL_LOG_FILE, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    try:
+                        existing_events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        pass
+
+    existing_events.append(event)
+
+    # Cleanup log file if it exceeds configured max limit
+    if len(existing_events) > max_events:
+        existing_events = existing_events[-max_events:]
+
+    with open(OCEL_LOG_FILE, "w", encoding="utf-8") as f:
+        for ev in existing_events:
+            f.write(json.dumps(ev, ensure_ascii=False) + "\n")
+
+    return event
 
 
 def validate_plan_with_val(domain_path: Path, problem_path: Path, plan_path: Path) -> dict:
@@ -58,12 +88,14 @@ def validate_plan_with_val(domain_path: Path, problem_path: Path, plan_path: Pat
         return {"val_passed": False, "error": str(e)}
 
 
-def 行灯チェック(dirty_tree: bool, build_passed: bool, val_result: dict | None = None) -> dict[str, bool | str | dict]:
-    """Execute Lean Andon stop-the-line check with OCEL 2.0 process logging."""
+def 行灯チェック(dirty_tree: bool, build_passed: bool, val_result: dict | None = None, max_ocel_events: int = DEFAULT_MAX_OCEL_EVENTS) -> dict[str, bool | str | dict]:
+    """Execute Lean Andon stop-the-line check with OCEL 2.0 process logging & configurable cleanup."""
+    status = "FAILED" if (dirty_tree or not build_passed or (val_result and not val_result.get("val_passed", True))) else "PASSED"
     ocel_event = record_ocel_event(
         event_type="AndonQualityInspection",
         object_id="pipeline-001",
-        status="FAILED" if (dirty_tree or not build_passed or (val_result and not val_result.get("val_passed", True))) else "PASSED"
+        status=status,
+        max_events=max_ocel_events
     )
 
     if dirty_tree or not build_passed:
