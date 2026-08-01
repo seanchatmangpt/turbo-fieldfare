@@ -5,7 +5,7 @@ struct MacAppSettings: Codable, Equatable, Sendable {
     static let currentVersion = 1
 
     var version: Int = currentVersion
-    var contextTokens: Int = AppContextLengthOption.fourK.tokens
+    var contextTokens: Int = AppContextLengthOption.sixtyFourK.tokens
     var expertCacheSlots: Int = 16
     var temperature: Double = 0.2
     var topKEnabled: Bool = true

@@ -14,7 +14,7 @@ public struct ServerArguments: Equatable, Sendable {
       --model <dir>          Required model directory.
       --port <1...65535>     Loopback port (default 8080).
       --model-id <id>        API model identifier (default gemma-4-26b-a4b-it).
-      --max-context <tokens> 4096, 8192, 16384, 32768, or 65536 (default 16384).
+      --max-context <tokens> 4096, 8192, 16384, 32768, or 65536 (default 65536).
       --queue-limit <count>  Maximum queued requests (default 4).
       --prompt-cache-mode <off|single-prefix>
                              Prompt KV reuse mode (default single-prefix).
@@ -25,7 +25,7 @@ public struct ServerArguments: Equatable, Sendable {
         var model: String?
         var port = 8080
         var modelID = "gemma-4-26b-a4b-it"
-        var maxContext = 16_384
+        var maxContext = 65_536
         var queueLimit = 4
         var promptCacheMode: ServerPromptCacheMode = .singlePrefix
         var index = 0

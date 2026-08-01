@@ -35,11 +35,11 @@ public enum AppContextLengthOption: Int, CaseIterable, Identifiable, Sendable {
 
     public var menuLabel: String {
         switch self {
-        case .fourK: "4K, Default"
+        case .fourK: "4K"
         case .eightK: "8K, +85 MB"
         case .sixteenK: "16K, +250 MB"
         case .thirtyTwoK: "32K, +590 MB"
-        case .sixtyFourK: "64K, +1.26 GB"
+        case .sixtyFourK: "64K, Default, +1.26 GB"
         }
     }
 }

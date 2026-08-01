@@ -13,11 +13,11 @@ import Testing
         }
         #expect(mebibytes == [305, 385, 545, 865, 1_505])
         #expect(AppContextLengthOption.allCases.map(\.menuLabel) == [
-            "4K, Default",
+            "4K",
             "8K, +85 MB",
             "16K, +250 MB",
             "32K, +590 MB",
-            "64K, +1.26 GB",
+            "64K, Default, +1.26 GB",
         ])
     }
 }

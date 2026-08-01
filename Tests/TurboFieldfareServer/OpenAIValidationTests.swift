@@ -297,7 +297,7 @@ struct ServerArgumentTests {
     @Test func defaults() throws {
         let arguments = try ServerArguments.parse(["--model", "model.gturbo"])
         #expect(arguments.port == 8080)
-        #expect(arguments.maxContext == 16_384)
+        #expect(arguments.maxContext == 65_536)
         #expect(arguments.queueLimit == 4)
         #expect(arguments.promptCacheMode == .singlePrefix)
     }

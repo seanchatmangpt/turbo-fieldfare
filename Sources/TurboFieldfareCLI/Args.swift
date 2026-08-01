@@ -16,7 +16,7 @@ public struct Args: Equatable, Sendable {
                 prompt: String? = nil,
                 messagesFile: String? = nil,
                 maxNew: Int = 1_024,
-                maxContext: Int = 4096,
+                maxContext: Int = 65_536,
                 temperature: Float = 0.2,
                 topK: Int? = 64,
                 topP: Float? = 0.95,
@@ -90,7 +90,7 @@ extension Args {
         var prompt: String?
         var messagesFile: String?
         var maxNew = 1_024
-        var maxContext = 4096
+        var maxContext = 65_536
         var temperature: Float = 0.2
         var topK: Int? = 64
         var topP: Float? = 0.95
