@@ -21,6 +21,9 @@ dependencies = [
 ]
 requires-python = ">=3.11"
 
+[project.scripts]
+kcj = "kcj_mustar.cli:main"
+
 [tool.uv.sources]
 dspy = { path = "vendors/dspy", editable = true }
 opql = { path = "vendors/opql", editable = true }
