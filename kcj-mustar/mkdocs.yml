@@ -1,0 +1,27 @@
+site_name: kcj-mustar
+site_description: KCJ Multi-Lingual MuStar League
+site_url: https://seanchatmangpt.github.io/kcj-mustar
+repo_url: https://github.com/seanchatmangpt/kcj-mustar
+repo_name: seanchatmangpt/kcj-mustar
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - Reference: reference.md
+
+watch:
+  - src
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: numpy
+
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.superfences

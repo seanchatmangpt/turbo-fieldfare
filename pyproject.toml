@@ -1,0 +1,12 @@
+[project]
+name = "mustar-league"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "blake3>=1.0.9",
+    "dspy>=3.2.1",
+    "fastapi>=0.141.1",
+    "pm4py>=2.7.23.3",
+    "typer>=0.27.0",
+    "uvicorn>=0.52.1",
+]

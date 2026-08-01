@@ -39,6 +39,15 @@ not proxy, tunnel, or expose it. A tool call from the local model never bypasses
 the client's normal permission policy. Keep the execution session alive while
 the server is needed, and stop only a server you launched.
 
+This project is read-only to the outside world: it never performs external
+actuation itself (no outbound network calls beyond serving its own loopback
+API, no writes outside its own model/scratch directories, no git or system
+mutation, no calling of tools it describes). When the server returns a tool
+call, its job ends at describing it -- name, arguments, `finish_reason:
+tool_calls`. Gemma is the engine that decides what to call; executing that
+call is always a downstream consumer's job (e.g. a client's own tool-calling
+loop), never this codebase's. Preserve this boundary in any change here.
+
 ## Test rules
 
 Before a model run, require macOS 26+, Swift 6.2+, enough disk, acceptable `memory_pressure -Q`, a completed `scratch/gemma4.gturbo`, and no process from `pgrep -fl 'TurboFieldfareServer|TurboFieldfareMac|TurboFieldfareDecodeService|TurboFieldfareCLI|TurboFieldfarePackageTests|swiftpm-testing-helper|mlx_lm|mlx-lm'`. If a check fails, inform the user and stop; do not terminate apps or delete or reinstall the model.
