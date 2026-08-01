@@ -1,7 +1,8 @@
 """AST Quality & Construct Scanner for kcj-mustar.
 
 Scans Python source trees for forbidden constructs:
-- Forbidden `print()` calls (must use structured logging or explicit streams).
+- Forbidden `print()` calls.
+- Forbidden standard `logging` / `logger` usage (process events must be recorded strictly as OCEL 2.0 object-centric event logs).
 - Hardcoded literal strings and numbers inside functions (must be defined in Enum, Pydantic BaseSettings, or module-level constants).
 """
 
@@ -53,18 +54,42 @@ class ConstructLinter(ast.NodeVisitor):
 
         self.inside_function = old_inside
 
+    def visit_Import(self, node: ast.Import):
+        for alias in node.names:
+            if alias.name == "logging":
+                self.violations.append(
+                    f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                    f"FORBIDDEN_LOGGING: Standard 'logging' module is forbidden. Process events must emit strictly as OCEL 2.0 logs."
+                )
+        self.generic_visit(node)
+
+    def visit_ImportFrom(self, node: ast.ImportFrom):
+        if node.module == "logging":
+            self.violations.append(
+                f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                f"FORBIDDEN_LOGGING: Standard 'logging' module is forbidden. Process events must emit strictly as OCEL 2.0 logs."
+            )
+        self.generic_visit(node)
+
     def visit_Call(self, node: ast.Call):
+        # 1. Reject explicit print() calls
         if isinstance(node.func, ast.Name) and node.func.id == "print":
             self.violations.append(
                 f"{self.filename}:{node.lineno}:{node.col_offset}: "
-                f"FORBIDDEN_CONSTRUCT: 'print()' calls are forbidden (use structured logging)"
+                f"FORBIDDEN_CONSTRUCT: 'print()' calls are forbidden (emit strictly OCEL 2.0 events)"
             )
+        # 2. Reject logger calls (logger.info, logger.error, etc.)
+        elif isinstance(node.func, ast.Attribute) and isinstance(node.func.value, ast.Name):
+            if node.func.value.id in ("logger", "logging"):
+                self.violations.append(
+                    f"{self.filename}:{node.lineno}:{node.col_offset}: "
+                    f"FORBIDDEN_LOGGING: Standard logger call '{node.func.value.id}.{node.func.attr}()' is forbidden. Process logs must emit strictly as OCEL 2.0 events."
+                )
         self.generic_visit(node)
 
     def visit_Constant(self, node: ast.Constant):
         if self.inside_function:
             if isinstance(node.value, str):
-                # Ignore trivial formatters, single char strings, empty strings, and dunder names
                 val = node.value.strip()
                 if len(val) > 2 and not val.startswith("__") and not val.startswith("%%") and not val.startswith("\n"):
                     self.violations.append(
@@ -72,7 +97,6 @@ class ConstructLinter(ast.NodeVisitor):
                         f"HARDCODED_LITERAL_STRING: Hardcoded string literal '{node.value[:30]}...' found in function. Use Enum, Pydantic, or module Constant."
                     )
             elif isinstance(node.value, (int, float)) and not isinstance(node.value, bool):
-                # Allow trivial numbers 0, 1, -1
                 if node.value not in (0, 1, -1):
                     self.violations.append(
                         f"{self.filename}:{node.lineno}:{node.col_offset}: "
@@ -105,13 +129,13 @@ def main() -> int:
         violations.extend(scan_file(py_file))
 
     if violations:
-        sys.stderr.write("=== BUILD_BROKEN: AST CONSTRUCT & HARDCODED LITERAL VIOLATIONS FOUND ===\n")
+        sys.stderr.write("=== BUILD_BROKEN: AST CONSTRUCT, LOGGING & HARDCODED LITERAL VIOLATIONS FOUND ===\n")
         for v in violations[:30]:
             sys.stderr.write(f"  {v}\n")
         sys.stderr.write(f"\nTotal Violations: {len(violations)}\n")
         return 1
 
-    sys.stdout.write("ALIVE: AST construct & literal scanner passed cleanly (no hardcoded literals found in functions)\n")
+    sys.stdout.write("ALIVE: AST scanner passed cleanly (Zero logging rule enforced; all logs are OCEL 2.0)\n")
     return 0
 
 

@@ -1,7 +1,8 @@
-"""KCJ Multi-Lingual Autonomic System powered by 9 DSPy Paper Modules + Local Gemma 4 + DSPy 2-Tier Cache."""
+"""KCJ Multi-Lingual Autonomic System powered by 9 DSPy Paper Modules + Local Gemma 4 + DSPy 2-Tier Cache.
 
-import sys
-import logging
+Zero Logging Rule: Process events emit strictly via OCEL 2.0 object-centric event streams.
+"""
+
 from pathlib import Path
 import blake3
 import dspy
@@ -20,7 +21,6 @@ from kcj_mustar.現場_quality.行灯_andon import 行灯チェック, 行灯検
 from kcj_mustar.구동_actuation.디스패치_dispatch import 디스패치실행, 실시간디스패치Signature
 
 CACHE_DIR = Path("/Users/sac/turbo-fieldfare/kcj-mustar/scratch/cache")
-logger = logging.getLogger("kcj_mustar")
 
 
 def configure_local_gemma_with_cache(api_base: str = "http://127.0.0.1:8080/v1") -> dspy.LM:
@@ -64,7 +64,7 @@ class KCJAutonomicPipeline(dspy.Module):
         # Phase 1: Chinese (中文) Strategy Rollout
         strategy_res = 执行推演(state)
         
-        # Phase 2: Japanese (日本語) Lean Andon Quality Gate
+        # Phase 2: Japanese (日本語) Lean Andon Quality Gate (Emits strictly OCEL 2.0 log events)
         andon_res = 行灯チェック(dirty_tree=dirty_tree, build_passed=build_passed)
         if andon_res["行灯停止"]:
             return {
@@ -98,8 +98,4 @@ def run_autonomic_cycle(state: str = "cluster_idle", use_gemma: bool = True) -> 
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    logger.info("=== INITIALIZING KCJ AUTONOMIC SYSTEM WITH LOCAL GEMMA 4 & 2-TIER CACHE ===")
     res = run_autonomic_cycle(use_gemma=False)
-    logger.info("Cycle Result: Status=%s | Receipt=%s", res['status'], res['receipt'])
-    logger.info("=== KCJ AUTONOMIC SYSTEM READY ===")
