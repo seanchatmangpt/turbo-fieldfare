@@ -86,7 +86,7 @@ graph TD
 * **Goal**: Execute approved actions at hardware speed with immutable audit proof.
 * **Result**: The Korean Actuation Engine dispatched commands at **100,000 APM** and generated a 64-character BLAKE3 hash:
   `6300a72d57637828416449516d1c7ab76714de39c215232589d56cca8b053109`
-  persistently logged to [`scratch/mu_star_store/receipts.jsonl`](file:///Users/sac/turbo-fieldfare/kcj-mustar/scratch/mu_star_store/receipts.jsonl).
+  persistently logged to the local receipt ledger at `/Users/sac/turbo-fieldfare/kcj-mustar/scratch/mu_star_store/receipts.jsonl`.
 * **Human Task Saved**: Eliminates manual execution monitoring, staging deployment, and compliance audit reporting.
 
 ---
