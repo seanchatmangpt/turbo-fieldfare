@@ -2,12 +2,13 @@
 
 from pathlib import Path
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from kcj_mustar import __version__
 from kcj_mustar.autonomic_system import run_autonomic_cycle
+from kcj_mustar.models import AutonomicCycleResult, ExecutionStatus, SystemConstants
 from kcj_mustar.mermaid_engine import render_mermaid_to_svg, instaui_mermaid_component, ariel_mermaid_style
 from kcj_mustar.video_engine import convert_log_to_video
 
@@ -19,28 +20,30 @@ app = FastAPI(
 
 
 class CycleRequest(BaseModel):
-    state: str = "unibit_l1_execution_wip"
-    use_gemma: bool = True
+    state: str = Field(default="unibit_l1_execution_wip", description="Initial state tag")
+    use_gemma: bool = Field(default=True, description="Local Gemma server connection flag")
 
 
 class MermaidRequest(BaseModel):
-    code: str = "graph TD\n  A[State] --> B[PDDL_Plan]\n  B --> C[OCEL_Check]\n  C --> D[BLAKE3_Dispatch]"
-    theme: Optional[str] = "canvas-dark"
-    accent_color: Optional[str] = "#89b4fa"
+    code: str = Field(default="graph TD\n  A[State] --> B[PDDL_Plan]\n  B --> C[OCEL_Check]\n  C --> D[BLAKE3_Dispatch]", description="Mermaid diagram code")
+    theme: Optional[str] = Field(default="canvas-dark", description="InstaUI theme name")
+    accent_color: Optional[str] = Field(default="#89b4fa", description="Ariel accent color hex")
+
+
+class HealthResponse(BaseModel):
+    status: ExecutionStatus = ExecutionStatus.PASSED
+    system: str = "KCJ-MuStar Autonomic Server"
+    version: str = __version__
 
 
 @app.get("/")
-def health_check():
+def health_check() -> HealthResponse:
     """Server health check endpoint."""
-    return {
-        "status": "ONLINE",
-        "system": "KCJ-MuStar Autonomic Server",
-        "version": __version__
-    }
+    return HealthResponse()
 
 
 @app.post("/v1/cycle/run")
-def execute_autonomic_cycle(req: CycleRequest) -> Dict[str, Any]:
+def execute_autonomic_cycle(req: CycleRequest) -> AutonomicCycleResult:
     """Execute one full KCJ Autonomic cycle (Chinese strategy, Japanese quality, Korean dispatch)."""
     try:
         res = run_autonomic_cycle(state=req.state, use_gemma=req.use_gemma)
@@ -74,7 +77,7 @@ def generate_log_video_endpoint(state: str = Query("chicago_tdd_api_video", desc
     """Run Chicago TDD cycle and return generated MP4 video file."""
     output_path = Path("scratch/chicago_tdd_api_execution.mp4")
     log_data = run_autonomic_cycle(state=state, use_gemma=True)
-    video_path = convert_log_to_video(log_data=log_data, output_path=output_path, fps=1)
+    video_path = convert_log_to_video(log_data=log_data.model_dump(), output_path=output_path, fps=1)
     
     if not video_path.exists():
         raise HTTPException(status_code=500, detail="Failed to generate MP4 video file")

@@ -4,6 +4,7 @@ import urllib.request
 import json
 from pathlib import Path
 from kcj_mustar.autonomic_system import configure_local_gemma_with_cache, KCJAutonomicPipeline, run_autonomic_cycle
+from kcj_mustar.models import ExecutionStatus, AutonomicCycleResult
 from kcj_mustar.現場_quality.行灯_andon import OCEL_LOG_FILE
 
 def verify_gemma_server_online() -> bool:
@@ -28,15 +29,16 @@ def test_chicago_kcj_full_dogfood_loop():
     initial_state = "hyperdimensional_combinatorial_max_wip"
     
     # 1. Run full autonomic cycle through Gemma 4 LM + DSPy 2-Tier Cache
-    result = run_autonomic_cycle(state=initial_state, use_gemma=True)
+    result: AutonomicCycleResult = run_autonomic_cycle(state=initial_state, use_gemma=True)
 
     # 2. Verify Execution Status & BLAKE3 Receipt
-    assert result["status"] == "EXECUTED"
-    assert result["receipt"] is not None
-    assert len(result["receipt"]) == 64, f"Invalid BLAKE3 receipt length: {len(result['receipt'])}"
+    assert result.status == ExecutionStatus.EXECUTED
+    assert result.receipt is not None
+    assert len(result.receipt) == 64, f"Invalid BLAKE3 receipt length: {len(result.receipt)}"
 
     # 3. Verify Combinatorial Maximalist PDDL / POWL Plan Generation (100 Nodes, 64 Workers)
-    strategy = result["strategy"]
+    strategy = result.strategy
+    assert strategy is not None
     assert "PDDL" in strategy, "Strategy missing PDDL spec"
     assert "(define (domain agricola)" in strategy["PDDL"]["domain_pddl"]
     assert "Combinatorial-Maximal-KCJ-hyperdimensional_combinatorial_max_wip" in strategy["PDDL"]["problem_pddl"]
@@ -45,7 +47,8 @@ def test_chicago_kcj_full_dogfood_loop():
     print(f"✓ Combinatorial Maximalist PDDL Domain ({len(strategy['PDDL']['domain_pddl'].splitlines())} lines) & Problem Specifications Verified!")
 
     # 4. Verify Japanese Genba Quality Gate & OCEL 2.0 Event Log Emission
-    quality = result["quality"]
+    quality = result.quality
+    assert quality is not None
     assert quality["行灯停止"] is False, "Quality check unexpectedly triggered Andon line-stop"
     assert "OCEL_Event" in quality, "Quality check missing OCEL event record"
     ocel_event = quality["OCEL_Event"]
@@ -60,7 +63,8 @@ def test_chicago_kcj_full_dogfood_loop():
     print(f"✓ OCEL 2.0 Event Log File Verified at {OCEL_LOG_FILE} ({len(log_lines)} events stored)")
 
     # 5. Verify Korean Real-Time Dispatch & APM Speed
-    dispatch = result["dispatch"]
+    dispatch = result.dispatch
+    assert dispatch is not None
     assert dispatch["성공"] is True
     assert dispatch["APM"] == 100000
     assert len(dispatch["영수증"]) == 64
