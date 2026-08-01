@@ -1,0 +1,17 @@
+# KCJ-MuStar Justfile Command Cockpit
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
+
+default:
+    @just --list
+
+# Run AST scanner to reject forbidden constructs (e.g. print calls) in src/
+ast-scan:
+    uv run python3 scripts/ast_linter.py
+
+# Run complete linting gate
+lint: ast-scan
+    @echo "ALIVE: KCJ-MuStar lint gate passed cleanly"
+
+# Run Chicago TDD test suite
+test: lint
+    PYTHONPATH=src:vendors/dspy uv run python3 tests/test_chicago_kcj_full_cycle.py
