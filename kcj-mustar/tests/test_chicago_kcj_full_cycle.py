@@ -1,4 +1,4 @@
-"""Chicago TDD Integration Test: Full Dogfooding Loop with Gemma 4 LM Inference & OCEL Event Log Verification."""
+"""Chicago TDD Integration Test: Full Dogfooding Loop with Gemma 4 LM Inference, Agricola High-Complexity PDDL, & OCEL Event Log Verification."""
 
 import urllib.request
 import json
@@ -21,7 +21,7 @@ def verify_gemma_server_online() -> bool:
 
 
 def test_chicago_kcj_full_dogfood_loop():
-    """Execute complete Chicago TDD dogfooding loop verifying PDDL plan generation, Gemma 4 LM integration, and OCEL emission."""
+    """Execute complete Chicago TDD dogfooding loop verifying high-complexity Agricola PDDL plan generation, Gemma 4 LM integration, and OCEL emission."""
     gemma_live = verify_gemma_server_online()
     assert gemma_live, "Gemma 4 server must be running on http://127.0.0.1:8080 for Chicago TDD dogfood loop"
 
@@ -35,14 +35,14 @@ def test_chicago_kcj_full_dogfood_loop():
     assert result["receipt"] is not None
     assert len(result["receipt"]) == 64, f"Invalid BLAKE3 receipt length: {len(result['receipt'])}"
 
-    # 3. Verify Working PDDL / POWL Plan Generation (Chinese Strategy Engine)
+    # 3. Verify High-Complexity PDDL / POWL Plan Generation (Agricola IPC-18 Benchmark)
     strategy = result["strategy"]
     assert "PDDL" in strategy, "Strategy missing PDDL spec"
-    assert "(define (domain KCJ-Autonomic-Domain)" in strategy["PDDL"]["domain_pddl"]
-    assert "(define (problem KCJ-Problem-unibit_l1_execution_wip)" in strategy["PDDL"]["problem_pddl"]
-    assert "POWL_NODE" in strategy["PDDL"]["powl_graph"]
+    assert "(define (domain agricola)" in strategy["PDDL"]["domain_pddl"]
+    assert "(define (problem opt01-3-4)" in strategy["PDDL"]["problem_pddl"]
+    assert "POWL_HIGH_COMPLEXITY_TREE" in strategy["PDDL"]["powl_graph"]
     assert "LumenGrounding" in strategy, "Strategy missing Lumen vector database grounding"
-    print("✓ Working PDDL Domain & Problem Specifications Verified!")
+    print(f"✓ High-Complexity PDDL Domain (Agricola opt18: {len(strategy['PDDL']['domain_pddl'].splitlines())} lines) & Problem Specifications Verified!")
 
     # 4. Verify Japanese Genba Quality Gate & OCEL 2.0 Event Log Emission
     quality = result["quality"]
@@ -71,4 +71,4 @@ def test_chicago_kcj_full_dogfood_loop():
 
 if __name__ == "__main__":
     test_chicago_kcj_full_dogfood_loop()
-    print("\n=== ALL CHICAGO TDD DOGFOODING CHECKS PASSED WITH LIVE GEMMA 4 SERVER! ===")
+    print("\n=== ALL CHICAGO TDD DOGFOODING CHECKS PASSED WITH HIGH-COMPLEXITY AGRICOLA PDDL & LIVE GEMMA 4 SERVER! ===")

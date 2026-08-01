@@ -27,3 +27,14 @@ opql = { path = "vendors/opql", editable = true }
 r4pm = { path = "vendors/r4pm", editable = true }
 open-agent-traces = { path = "vendors/open_agent_traces", editable = true }
 tpot = { path = "vendors/tpot2", editable = true }
+
+[tool.pytest.ini_options]
+pythonpath = [
+    "src",
+    "vendors/dspy",
+    "vendors/opql",
+    "vendors/r4pm",
+    "vendors/open_agent_traces",
+    "vendors/tpot2",
+    "vendors/scikit_decide/src"
+]
