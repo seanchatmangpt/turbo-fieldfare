@@ -1,4 +1,4 @@
-"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, FastAPI Server launch, Mermaid Rendering, and Log Video Engine."""
+"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, FastAPI Server launch, Mermaid Rendering, POWL Diagrams, and Log Video Engine."""
 
 import sys
 import json
@@ -9,18 +9,21 @@ from pathlib import Path
 from kcj_mustar import __version__
 from kcj_mustar.autonomic_system import run_autonomic_cycle
 from kcj_mustar.mermaid_engine import render_mermaid_to_svg, instaui_mermaid_component, ariel_mermaid_style, generate_uncached_gemma_mermaid
+from kcj_mustar.powl_engine import generate_powl_mermaid_from_run, render_powl_to_svg
 from kcj_mustar.video_engine import convert_log_to_video
 
 app = typer.Typer(
     name="kcj",
-    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, FastAPI Web Server, PDDL Synthesis, Mermaid & Log Video Engines",
+    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, FastAPI Web Server, POWL Diagrams, PDDL Synthesis & Video Engines",
     add_completion=False
 )
 
 mermaid_app = typer.Typer(help="Mermaid Diagram Rendering (mcp-mermaid, instaui-mermaid, ariel-mermaid)")
+powl_app = typer.Typer(help="POWL (Partially Ordered Workflow Language) Diagram Generation")
 video_app = typer.Typer(help="Log-to-Video Engine (Chicago TDD & OCEL event log MP4 video renderer)")
 
 app.add_typer(mermaid_app, name="mermaid")
+app.add_typer(powl_app, name="powl")
 app.add_typer(video_app, name="video")
 
 
@@ -47,9 +50,27 @@ def serve(
     port: int = typer.Option(8000, "--port", "-p", help="Port to listen on"),
     reload: bool = typer.Option(False, "--reload", help="Enable uvicorn auto-reload")
 ):
-    """Launch FastAPI web server for KCJ autonomic cycles, REST endpoints, and video/mermaid APIs."""
+    """Launch FastAPI web server for KCJ autonomic cycles, REST endpoints, and video/mermaid/powl APIs."""
     typer.echo(f"=== Launching KCJ-MuStar FastAPI Server on http://{host}:{port} ===")
     uvicorn.run("kcj_mustar.server:app", host=host, port=port, reload=reload)
+
+
+@powl_app.command("generate")
+def generate_powl_diagram(
+    state: str = typer.Option("powl_chicago_tdd_run", "--state", "-s", help="Cycle state for POWL diagram"),
+    output: Path = typer.Option(Path("scratch/case_study_powl.svg"), "--output", "-o", help="Output SVG file path")
+):
+    """Run Chicago TDD cycle and generate an authentic POWL (Partially Ordered Workflow Language) workflow diagram."""
+    typer.echo(f"=== Running Autonomic Cycle for POWL Generation (State: {state}) ===")
+    res = run_autonomic_cycle(state=state, use_gemma=True)
+    
+    typer.echo("=== Synthesizing POWL Partial Order & Choice Gate Diagram ===")
+    powl_code = generate_powl_mermaid_from_run(res)
+    svg = render_powl_to_svg(powl_code, title=f"POWL Autonomic Workflow: {state}")
+    
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(svg, encoding="utf-8")
+    typer.echo(f"✓ Saved authentic POWL Workflow SVG ({len(svg)} bytes) to {output}")
 
 
 @mermaid_app.command("generate")
@@ -58,7 +79,7 @@ def generate_mermaid_cli(
     nodes: int = typer.Option(40, "--nodes", "-n", help="Number of nodes for maximalist diagram density"),
     output: Path = typer.Option(None, "--output", "-o", help="Optional output SVG file path")
 ):
-    """Synthesize a massive, un-cached Mermaid.js diagram using Gemma 4 + Faker entropy seeds."""
+    """Synthesize a massive, un-cached Mermaid.js diagram using Gemma 4 + Faker/FactoryBoy entropy seeds."""
     typer.echo(f"=== Generating Un-cached Gemma 4 Mermaid Diagram ({nodes} nodes) ===")
     code = generate_uncached_gemma_mermaid(case_study_state=state, num_nodes=nodes)
     svg = render_mermaid_to_svg(code, title=f"Gemma 4 Case Study Diagram - {state}")
