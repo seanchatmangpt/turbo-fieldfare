@@ -1,4 +1,4 @@
-"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, and Mermaid Rendering Engines."""
+"""Typer CLI interface for KCJ-MuStar, Autonomic Cycles, Mermaid Rendering, and Log Video Engine."""
 
 import sys
 import json
@@ -8,15 +8,19 @@ from pathlib import Path
 from kcj_mustar import __version__
 from kcj_mustar.autonomic_system import run_autonomic_cycle
 from kcj_mustar.mermaid_engine import render_mermaid_to_svg, instaui_mermaid_component, ariel_mermaid_style
+from kcj_mustar.video_engine import convert_log_to_video
 
 app = typer.Typer(
     name="kcj",
-    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, PDDL Synthesis & Mermaid Engines",
+    help="KCJ-MuStar CLI: Multi-Lingual Autonomic League, PDDL Synthesis, Mermaid & Log Video Engines",
     add_completion=False
 )
 
 mermaid_app = typer.Typer(help="Mermaid Diagram Rendering (mcp-mermaid, instaui-mermaid, ariel-mermaid)")
+video_app = typer.Typer(help="Log-to-Video Engine (Chicago TDD & OCEL event log MP4 video renderer)")
+
 app.add_typer(mermaid_app, name="mermaid")
+app.add_typer(video_app, name="video")
 
 
 @app.command()
@@ -68,6 +72,21 @@ def render_ariel(
     """Render Ariel design system styled Mermaid HTML container."""
     html_out = ariel_mermaid_style(code, accent_color=accent)
     typer.echo(html_out)
+
+
+@video_app.command("generate")
+def generate_log_video(
+    state: str = typer.Option("chicago_tdd_video_state", "--state", "-s", help="State for cycle run"),
+    output: Path = typer.Option(Path("scratch/chicago_tdd_execution.mp4"), "--output", "-o", help="Output MP4 video file path"),
+    fps: int = typer.Option(1, "--fps", help="Frames per second duration")
+):
+    """Execute Chicago TDD autonomic cycle and render execution logs into an MP4 video."""
+    typer.echo(f"=== Running Chicago TDD Autonomic Cycle for Video Generation ===")
+    log_data = run_autonomic_cycle(state=state, use_gemma=True)
+    
+    typer.echo(f"=== Rendering Log Video to {output} ===")
+    video_file = convert_log_to_video(log_data=log_data, output_path=output, fps=fps)
+    typer.echo(f"✓ Log MP4 Video successfully generated at {video_file.resolve()}")
 
 
 def main():
