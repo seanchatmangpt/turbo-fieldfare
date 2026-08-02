@@ -31,7 +31,7 @@ struct MacAppSettings: Codable, Equatable, Sendable {
     }
 
     init(version: Int = currentVersion,
-         contextTokens: Int = AppContextLengthOption.fourK.tokens,
+         contextTokens: Int = AppContextLengthOption.sixtyFourK.tokens,
          expertCacheSlots: Int = 16,
          temperature: Double = 0.2,
          topKEnabled: Bool = true,
