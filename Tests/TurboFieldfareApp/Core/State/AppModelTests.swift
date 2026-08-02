@@ -127,6 +127,7 @@ import Testing
         let directory = FileManager.default.temporaryDirectory
         model.modelPathText = directory.path
         model.applyLoadState(.ready(modelDirectory: directory, loadSeconds: 0))
+
         model.setNewlineShortcut(.shiftReturn)
 
         #expect(model.newlineShortcut == .shiftReturn)
@@ -231,6 +232,7 @@ import Testing
         #expect(!model.outputResponsePlainText.isEmpty)
         #expect(model.outputConversationPlainText.hasPrefix(
             "You:\nstop after token\n\nAnswer:\n"))
+
         model.clearOutput()
         #expect(!model.hasOutputTranscript)
         #expect(model.outputPromptText.isEmpty)
@@ -284,7 +286,7 @@ import Testing
     @Test func changingModelPathInvalidatesLoadedStateAndDiagnostics() {
         let model = AppModel(client: MockInferenceClient())
         let oldURL = FileManager.default.temporaryDirectory.appendingPathComponent("old.gturbo")
-        let newURL = FileManager.default.temporaryDirectory.appendingPathComponent("innew.gturbo")
+        let newURL = FileManager.default.temporaryDirectory.appendingPathComponent("new.gturbo")
         model.modelPathText = oldURL.path
         model.loadState = .ready(modelDirectory: oldURL, loadSeconds: 1)
         model.diagnostics = AppDiagnostics(
